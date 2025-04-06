@@ -11,7 +11,8 @@ import json
 import logging
 
 app = Flask(__name__)
-CORS(app)
+# Wyraźnie zezwalamy na origin Twojej strony
+CORS(app, resources={r"/chat": {"origins": "https://ikebukurofighters.pl"}})
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Konfiguracja logowania
@@ -56,7 +57,7 @@ def send_bot_message(bot, message):
 @app.route("/chat", methods=["POST"])
 def chat():
     user_message = request.json["message"]
-    active_bots = ["ghostie_menma"]  # Zawsze Menma dla testu
+    active_bots = ["ghostie_menma"]  # Test: zawsze Menma
     logger.info(f"Wybrano boty: {active_bots}")
     for bot in active_bots:
         threading.Thread(target=send_bot_message, args=(bot, user_message)).start()
