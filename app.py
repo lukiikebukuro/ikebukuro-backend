@@ -19,9 +19,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Firebase
-cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
-firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
-messages_ref = db.reference("messages")
+try:
+    cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
+    firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
+    messages_ref = db.reference("messages")
+except Exception as e:
+    logger.error(f"Failed to initialize Firebase: {str(e)}")
+    raise
 
 bots = {
     "urban_mindz": {"persona": "manipulacyjny trickster, sarkastyczny i inteligentny. nen: manipulator.", "nen": "Manipulator"},
