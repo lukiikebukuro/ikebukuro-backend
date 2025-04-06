@@ -1,3 +1,4 @@
+from flask_cors import CORS
 from flask import Flask, request
 import openai
 import firebase_admin
@@ -5,13 +6,14 @@ from firebase_admin import db, credentials
 import random
 import time
 import threading
+import os
+import json
 
 app = Flask(__name__)
+CORS(app)  # Dodane, żeby pozwolić na zapytania z Firebase
 openai.api_key = "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"
 
 # Firebase config
-import os
-import json
 cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
 firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
 messages_ref = db.reference("messages")
@@ -57,4 +59,4 @@ def chat():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port)
