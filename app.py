@@ -20,7 +20,11 @@ logger = logging.getLogger(__name__)
 
 # Firebase
 try:
-    cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
+    firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
+    if not firebase_credentials:
+        raise ValueError("FIREBASE_CREDENTIALS environment variable is not set.")
+    logger.debug(f"FIREBASE_CREDENTIALS: {firebase_credentials[:100]}...")  # Log first 100 characters for debugging
+    cred = credentials.Certificate(json.loads(firebase_credentials))
     firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
     messages_ref = db.reference("messages")
 except Exception as e:
