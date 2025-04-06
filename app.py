@@ -12,7 +12,7 @@ import logging
 
 app = Flask(__name__)
 CORS(app)
-openai.api_key = "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"
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO)
@@ -33,15 +33,15 @@ def send_bot_message(bot, message):
     try:
         delay = random.uniform(2, 8)
         time.sleep(delay)
-        logger.info(f"Bot {bot} próbuje odpisać na: {message}")  # Logowanie
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
+        logger.info(f"Bot {bot} próbuje odpisać na: {message}")
+        response = openai.chat.completions.create(
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": bots[bot]["persona"]},
                 {"role": "user", "content": message}
             ]
         ).choices[0].message.content.lower()
-        logger.info(f"Bot {bot} napisał: {response}")  # Logowanie
+        logger.info(f"Bot {bot} napisał: {response}")
         messages_ref.push({
             "nickname": bot,
             "message": response,
@@ -49,9 +49,9 @@ def send_bot_message(bot, message):
             "textColor": "#ff4500",
             "timestamp": firebase.database.ServerValue.TIMESTAMP
         })
-        logger.info(f"Bot {bot} wysłał do czatu!")  # Logowanie
+        logger.info(f"Bot {bot} wysłał do czatu!")
     except Exception as e:
-        logger.error(f"Bot {bot} ma problem: {str(e)}")  # Logowanie błędu
+        logger.error(f"Bot {bot} ma problem: {str(e)}")
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -64,7 +64,7 @@ def chat():
     if random.random() < 0.20:  # 20% szans na Izayę
         active_bots.append("urban_mindz")
     
-    logger.info(f"Wybrano boty: {active_bots}")  # Logowanie
+    logger.info(f"Wybrano boty: {active_bots}")
     for bot in active_bots:
         threading.Thread(target=send_bot_message, args=(bot, user_message)).start()
     return {"status": "ok"}
