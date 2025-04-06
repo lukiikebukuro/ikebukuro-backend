@@ -2,7 +2,7 @@ from flask_cors import CORS
 from flask import Flask, request
 import openai
 import firebase_admin
-from firebase_admin import db, credentials
+from firebase_admin import db, credentials, firestore  # Add this import
 import random
 import time
 import threading
@@ -47,7 +47,7 @@ def send_bot_message(bot, message):
             "message": response,
             "color": "#1a1a1a",
             "textColor": "#ff4500",
-            "timestamp": firebase_admin.db.SERVER_TIMESTAMP  # Poprawny Firebase
+            "timestamp": {".sv": "timestamp"}  # Correct Realtime Database timestamp
         })
         logger.info(f"Bot {bot} wysłał do czatu!")
     except Exception as e:
