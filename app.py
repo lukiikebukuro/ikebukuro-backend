@@ -56,14 +56,7 @@ def send_bot_message(bot, message):
 @app.route("/chat", methods=["POST"])
 def chat():
     user_message = request.json["message"]
-    active_bots = []
-    if random.random() < 0.50:  # 50% szans na Menmę
-        active_bots.append("ghostie_menma")
-    if random.random() < 0.30:  # 30% szans na Holo
-        active_bots.append("foxhime93")
-    if random.random() < 0.20:  # 20% szans na Izayę
-        active_bots.append("urban_mindz")
-    
+    active_bots = ["ghostie_menma"]  # Zawsze Menma dla testu
     logger.info(f"Wybrano boty: {active_bots}")
     for bot in active_bots:
         threading.Thread(target=send_bot_message, args=(bot, user_message)).start()
