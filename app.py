@@ -47,7 +47,7 @@ def send_bot_message(bot, message):
             "message": response,
             "color": "#1a1a1a",
             "textColor": "#ff4500",
-            "timestamp": db.ServerValue.TIMESTAMP  # Poprawny Firebase
+            "timestamp": firebase_admin.db.SERVER_TIMESTAMP  # Poprawny Firebase
         })
         logger.info(f"Bot {bot} wysłał do czatu!")
     except Exception as e:
