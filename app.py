@@ -10,7 +10,9 @@ app = Flask(__name__)
 openai.api_key = "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"
 
 # Firebase config
-cred = credentials.Certificate("C:/Users/lpisk/OneDrive/Pulpit/backend/firebase-key.json")
+import os
+import json
+cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
 firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
 messages_ref = db.reference("messages")
 
