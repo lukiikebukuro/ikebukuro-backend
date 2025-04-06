@@ -11,15 +11,14 @@ import json
 import logging
 
 app = Flask(__name__)
-# Wyraźnie zezwalamy na origin Twojej strony
 CORS(app, resources={r"/chat": {"origins": "https://ikebukurofighters.pl"}})
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Konfiguracja logowania
+# Logowanie
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Firebase config
+# Firebase
 cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_CREDENTIALS")))
 firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
 messages_ref = db.reference("messages")
@@ -32,7 +31,7 @@ bots = {
 
 def send_bot_message(bot, message):
     try:
-        delay = random.uniform(2, 8)
+        delay = random.uniform(6, 15)  # Opóźnienie 6-15 sekund
         time.sleep(delay)
         logger.info(f"Bot {bot} próbuje odpisać na: {message}")
         response = openai.chat.completions.create(
@@ -48,7 +47,7 @@ def send_bot_message(bot, message):
             "message": response,
             "color": "#1a1a1a",
             "textColor": "#ff4500",
-            "timestamp": firebase.database.ServerValue.TIMESTAMP
+            "timestamp": db.ServerValue.TIMESTAMP  # Poprawny Firebase
         })
         logger.info(f"Bot {bot} wysłał do czatu!")
     except Exception as e:
@@ -57,7 +56,25 @@ def send_bot_message(bot, message):
 @app.route("/chat", methods=["POST"])
 def chat():
     user_message = request.json["message"]
-    active_bots = ["ghostie_menma"]  # Test: zawsze Menma
+    active_bots = []
+    
+    # Losowanie botów: Menma 50%, Holo 30%, Izaya 20%
+    if random.random() < 0.50:
+        active_bots.append("ghostie_menma")
+    if random.random() < 0.30:
+        active_bots.append("foxhime93")
+    if random.random() < 0.20:
+        active_bots.append("urban_mindz")
+    
+    # Zazwyczaj 1 bot, czasem 2, rzadko 3
+    if len(active_bots) > 1:
+        # 70% szans na tylko 1 bota, jeśli wylosowano więcej
+        if random.random() < 0.70:
+            active_bots = [random.choice(active_bots)]
+        # 25% szans na 2 boty, jeśli więcej niż 1
+        elif len(active_bots) > 2 and random.random() < 0.75:
+            active_bots = random.sample(active_bots, 2)
+    
     logger.info(f"Wybrano boty: {active_bots}")
     for bot in active_bots:
         threading.Thread(target=send_bot_message, args=(bot, user_message)).start()
