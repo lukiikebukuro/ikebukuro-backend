@@ -33,23 +33,27 @@ bots = {
         "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
         "color": "#000000",
         "textColor": "#ff0000",
-        "nen_type": "Manipulator"
+        "nen_type": "Manipulator",
+        "last_response_time": 0  # Dodajemy czas ostatniej odpowiedzi
     },
     "fox": {
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000",
-        "nen_type": "Specjalista"
+        "nen_type": "Specjalista",
+        "last_response_time": 0
     },
     "menma": {
         "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000",
-        "nen_type": "Wzmacniacz"
+        "nen_type": "Wzmacniacz",
+        "last_response_time": 0
     }
 }
 
 last_bot = None
+COOLDOWN_TIME = 30  # 30 sekund cooldown między odpowiedziami tego samego bota
 
 @app.route("/", methods=["GET"])
 def home():
@@ -61,7 +65,7 @@ def add_human_touch(bot, text):
     
     words = text.split()
     if len(words) > 10:
-        text = " ".join(words[:10])
+        text = " ".join(words[:random.randint(5, 10)])  # Ścisłe 5-10 słów
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
@@ -90,6 +94,11 @@ def add_human_touch(bot, text):
 def send_bot_message(bot, message, is_reply=False, reply_to=None):
     global last_bot
     try:
+        current_time = time.time()
+        if current_time - bots[bot]["last_response_time"] < COOLDOWN_TIME:
+            logger.info(f"Bot {bot} na cooldownie, pomijam odpowiedź.")
+            return None, None
+
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
         prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, krótko (5-10 słów), z sensem, bez dziwnych słów."
         if is_reply and reply_to:
@@ -101,7 +110,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=20
+            max_tokens=15  # Zmniejszamy do 15, żeby zmieścić się w 5-10 słów po dodatkach
         ).choices[0].message.content.lower()
         
         while len(response.split()) < 3:
@@ -116,7 +125,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         time.sleep(delay)
         
         nen_type = bots[bot]["nen_type"]
-        nickname = f"{bot}({nen_type})"  # Poprawne formatowanie: jeden typ Nen
+        nickname = f"{bot}({nen_type})"
         message_data = {
             "nickname": nickname,
             "message": response,
@@ -129,6 +138,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         message_id = ref.key
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
+        bots[bot]["last_response_time"] = time.time()  # Aktualizujemy czas odpowiedzi
         return response, message_id
     except Exception as e:
         logger.error(f"Bot {bot} failed: {str(e)}")
@@ -166,5 +176,5 @@ def chat():
     return {"status": "ok"}
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT"))
     app.run(host="0.0.0.0", port=port)
