@@ -121,7 +121,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         # Poprawione oznaczenie Nen w Firebase
         nen_type = bots[bot]["nen_type"]
         message_data = {
-            "nickname": f"{bot} ({nen_type})",
+            "nickname": f"{bot} ({nen_type})",  # Include Nen type in nickname
             "message": response,
             "color": bots[bot]["color"],
             "textColor": bots[bot]["textColor"],
