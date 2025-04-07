@@ -40,7 +40,7 @@ bots = {
         "textColor": "#000000"
     },
     "ghostie_menma": {
-        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, literówki w 10%, emotki ^^ lub uwu w 60%.",
+        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000"
     }
@@ -56,11 +56,17 @@ def add_human_touch(bot, text):
     human_prefixes = ["ej, ", "no dobra, ", "hej, ", "o, "]
     text = random.choice(human_prefixes) + text
     
-    # Sprawdzamy, czy odpowiedź brzmi sensownie
-    if text.strip().endswith("?") and len(text.split()) < 5:
-        text += " " + random.choice(["daj znać", "co sądzisz", "no powiedz"])
-    elif len(text.split()) < 4:
-        text += " " + random.choice(["luzik", "spoko", "dobra"])
+    # Ograniczamy do 5-10 słów
+    words = text.split()
+    if len(words) > 10:
+        text = " ".join(words[:10])
+    elif len(words) < 5:
+        text += " " + random.choice(["spoko", "luz", "dobra", "no"])
+    
+    # Blokada nonsensu
+    last_word = words[-1]
+    if len(last_word) < 3 or last_word in ["kto", "co", "jak", "colts"]:
+        text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "super"])
     
     if bot == "urban_mindz":
         if random.random() < 0.15:
@@ -74,7 +80,7 @@ def add_human_touch(bot, text):
         if random.random() < 0.05:
             text += random.choice([" .", " ~", " hmpf"])
     elif bot == "ghostie_menma":
-        if random.random() < 0.1:
+        if random.random() < 0.05:
             text = text.replace("a", "aa").replace("e", "ee")
         if random.random() < 0.6:
             text += random.choice([" ^^", " uwu", " :3"])
@@ -84,7 +90,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
     global last_bot
     try:
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
-        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, bez sztuczności, pełnymi zdaniami."
+        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, krótko (5-10 słów), z sensem, bez dziwnych słów."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
         
@@ -94,12 +100,12 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=15
+            max_tokens=20
         ).choices[0].message.content.lower()
         
         # Filtr na urwane odpowiedzi
-        while len(response.split()) < 3 or response.strip().endswith("?"):
-            response += " " + random.choice(["no", "dobra", "spoko", "hej"])
+        while len(response.split()) < 3:
+            response += " " + random.choice(["no", "dobra", "spoko"])
         
         if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
             response = random.choice(["nya~ ", "słodkie! ", "hejka "]) + response
@@ -139,14 +145,14 @@ def chat():
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # Reakcja na imię
+    # Reakcja na imię - zawsze priorytet
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
     if active_bots:  # Wywołano bota
         first_bot = active_bots[0]
         logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
-        last_bot = first_bot  # Aktualizacja last_bot po wywołaniu
+        last_bot = first_bot  # Nadpisuje last_bot
     else:  # Brak imienia
         if last_bot and last_bot in bots:
             first_bot = last_bot
