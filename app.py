@@ -117,15 +117,18 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
-        # Obejście - bez nawiasów, surowy string
-        nen_type = bots[bot]["nen_type"]
+        # Formatowanie nazwy: bot(NenType) z wielką literą
+        nen_type = bots[bot]["nen_type"]  # np. "Manipulator"
+        nickname = f"{bot}({nen_type})"   # np. "urban(Manipulator)"
+        
         message_data = {
-            "nickname": f"{bot} {nen_type}",  # np. "urban Manipulator"
+            "nickname": nickname,
             "message": response,
             "color": bots[bot]["color"],
             "textColor": bots[bot]["textColor"],
             "timestamp": {".sv": "timestamp"}
         }
+        logger.info(f"Sending to Firebase: {message_data}")
         ref = messages_ref.push(message_data)
         message_id = ref.key
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
@@ -146,7 +149,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
 def chat():
     global last_bot
     user_message = request.json["message"]
-    logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
+    logger.info(f"Oを受けた wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
     # Reakcja na imię - pełne nicki
