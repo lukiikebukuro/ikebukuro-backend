@@ -56,6 +56,12 @@ def add_human_touch(bot, text):
     human_prefixes = ["ej, ", "no dobra, ", "hej, ", "o, "]
     text = random.choice(human_prefixes) + text
     
+    # Sprawdzamy, czy odpowiedź brzmi sensownie
+    if text.strip().endswith("?") and len(text.split()) < 5:
+        text += " " + random.choice(["daj znać", "co sądzisz", "no powiedz"])
+    elif len(text.split()) < 4:
+        text += " " + random.choice(["luzik", "spoko", "dobra"])
+    
     if bot == "urban_mindz":
         if random.random() < 0.15:
             text = text.replace("e", "ee").replace("o", "oo")
@@ -78,7 +84,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
     global last_bot
     try:
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
-        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, bez sztuczności."
+        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, bez sztuczności, pełnymi zdaniami."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
         
@@ -92,8 +98,8 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         ).choices[0].message.content.lower()
         
         # Filtr na urwane odpowiedzi
-        while len(response.split()) < 3:
-            response += " " + random.choice(["no", "dobra", "hej"])
+        while len(response.split()) < 3 or response.strip().endswith("?"):
+            response += " " + random.choice(["no", "dobra", "spoko", "hej"])
         
         if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
             response = random.choice(["nya~ ", "słodkie! ", "hejka "]) + response
