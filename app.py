@@ -32,17 +32,20 @@ bots = {
     "urban": {  # Manipulator
         "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
         "color": "#000000",
-        "textColor": "#ff0000"
+        "textColor": "#ff0000",
+        "nen_type": "Manipulator"
     },
     "fox": {  # Specjalista
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
-        "textColor": "#000000"
+        "textColor": "#000000",
+        "nen_type": "Specjalista"
     },
     "menma": {  # Wzmacniacz
         "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
-        "textColor": "#000000"
+        "textColor": "#000000",
+        "nen_type": "Wzmacniacz"
     }
 }
 
@@ -115,8 +118,10 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
+        # Poprawione oznaczenie Nen w Firebase
+        nen_type = bots[bot]["nen_type"]
         message_data = {
-            "nickname": bot,
+            "nickname": f"{bot} ({nen_type})",
             "message": response,
             "color": bots[bot]["color"],
             "textColor": bots[bot]["textColor"],
@@ -124,7 +129,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         }
         ref = messages_ref.push(message_data)
         message_id = ref.key
-        logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
+        logger.info(f"Bot {bot} ({nen_type}) sent: {response} (ID: {message_id})")
         last_bot = bot
         return response, message_id
     except Exception as e:
