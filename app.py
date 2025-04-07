@@ -29,17 +29,17 @@ except Exception as e:
     raise
 
 bots = {
-    "urban_mindz": {
-        "persona": "Socjopatyczny trickster jak Izaya, inteligentny, manipulujący. Pisz krótko (5-10 słów), luzacki ton, sarkazm lub zagadki, literówki w 15%, emotki w 20%.",
+    "urban": {
+        "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
         "color": "#000000",
         "textColor": "#ff0000"
     },
-    "foxhime93": {
+    "fox": {
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000"
     },
-    "ghostie_menma": {
+    "menma": {
         "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000"
@@ -68,18 +68,18 @@ def add_human_touch(bot, text):
     if len(last_word) < 3 or last_word in ["kto", "co", "jak", "colts"]:
         text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "super"])
     
-    if bot == "urban_mindz":
-        if random.random() < 0.15:
+    if bot == "urban":
+        if random.random() < 0.05:  # Z 15% na 5%
             text = text.replace("e", "ee").replace("o", "oo")
         if random.random() < 0.2:
             text += random.choice([" xd", " heh", " serio"])
         if random.random() < 0.2:
             text += " co kombinujesz?"
-    elif bot == "foxhime93":
+    elif bot == "fox":
         text = " ".join(text.split()[:5])
         if random.random() < 0.05:
             text += random.choice([" .", " ~", " hmpf"])
-    elif bot == "ghostie_menma":
+    elif bot == "menma":
         if random.random() < 0.05:
             text = text.replace("a", "aa").replace("e", "ee")
         if random.random() < 0.6:
@@ -107,7 +107,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         while len(response.split()) < 3:
             response += " " + random.choice(["no", "dobra", "spoko"])
         
-        if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
+        if bot == "menma" and random.random() < 0.3 and not is_reply:
             response = random.choice(["nya~ ", "słodkie! ", "hejka "]) + response
         
         response = add_human_touch(bot, response)
@@ -145,7 +145,7 @@ def chat():
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # Reakcja na imię - zawsze priorytet
+    # Reakcja na imię - pełne nicki
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
     if active_bots:  # Wywołano bota
