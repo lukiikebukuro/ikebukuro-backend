@@ -106,7 +106,6 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             max_tokens=20
         ).choices[0].message.content.lower()
         
-        # Filtr na urwane odpowiedzi
         while len(response.split()) < 3:
             response += " " + random.choice(["no", "dobra", "spoko"])
         
@@ -118,10 +117,10 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
-        # Poprawione oznaczenie Nen w Firebase
+        # Obejście - bez nawiasów, surowy string
         nen_type = bots[bot]["nen_type"]
         message_data = {
-            "nickname": f"{bot} ({nen_type})",  # Correctly include Nen type once
+            "nickname": f"{bot} {nen_type}",  # np. "urban Manipulator"
             "message": response,
             "color": bots[bot]["color"],
             "textColor": bots[bot]["textColor"],
@@ -129,7 +128,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         }
         ref = messages_ref.push(message_data)
         message_id = ref.key
-        logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")  # Avoid redundant Nen type here
+        logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
         return response, message_id
     except Exception as e:
