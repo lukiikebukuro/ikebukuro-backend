@@ -54,7 +54,6 @@ def home():
     return {"message": "Service is live 🎉"}, 200
 
 def add_human_touch(bot, text):
-    # Więcej ludzkich elementów
     human_prefixes = ["ee… ", "no dobra, ", "hej, ", ""]
     text = random.choice(human_prefixes) + text
     
@@ -89,7 +88,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=15  # Max 5-10 słów
+            max_tokens=15
         ).choices[0].message.content.lower()
         
         if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
@@ -108,7 +107,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             "timestamp": {".sv": "timestamp"}
         })
         logger.info(f"Bot {bot} sent: {response}")
-        return response  # Zwracamy odpowiedź dla interakcji
+        return response
     except Exception as e:
         logger.error(f"Bot {bot} failed: {str(e)}")
         messages_ref.push({
@@ -124,22 +123,31 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
 def chat():
     user_message = request.json["message"]
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
+    message_lower = user_message.lower()
     
-    # Reakcja na imię
-    active_bots = [bot for bot in bots.keys() if bot in user_message.lower()]
-    if not active_bots:  # Jeśli brak imienia, losowy wybór
+    # Reakcja na imię – tylko wywołane boty
+    active_bots = [bot for bot in bots.keys() if bot in message_lower]
+    
+    # Jeśli brak imienia lub ogólne "hej", losowy bot
+    if not active_bots and "hej" in message_lower:
         active_bots = [
             bot for bot, chance in [("foxhime93", 0.35), ("urban_mindz", 0.35), ("ghostie_menma", 0.30)]
             if random.random() < chance
         ]
-        if not active_bots and random.random() < 0.2:  # 20% szans na losowego
+        if not active_bots:
             active_bots = [random.choice(list(bots.keys()))]
     
-    if len(active_bots) > 1:  # Ograniczenie liczby botów
-        if random.random() < 0.70:
-            active_bots = [random.choice(active_bots)]
-        elif len(active_bots) > 2 and random.random() < 0.75:
-            active_bots = random.sample(active_bots, 2)
+    # Ograniczenie do 1 bota, chyba że wywołano więcej
+    if len(active_bots) > 1 and " i " not in message_lower:  # "i" oznacza chęć rozmowy z wieloma
+        active_bots = [random.choice(active_bots)]
+    
+    # Jeśli brak botów (np. "co słychać" bez imienia), losowy z małą szansą
+    if not active_bots and random.random() < 0.2:
+        active_bots = [random.choice(list(bots.keys()))]
+    
+    if not active_bots:
+        logger.info("No bots triggered")
+        return {"status": "ok"}
     
     logger.info(f"Selected bots: {active_bots}")
     
@@ -147,7 +155,7 @@ def chat():
     first_bot = active_bots[0]
     first_response = send_bot_message(first_bot, user_message)
     
-    # Interakcja między botami (30% szans)
+    # Interakcja tylko jeśli wywołano więcej botów (np. "urban i menma")
     if first_response and len(active_bots) > 1 and random.random() < 0.3:
         second_bot = random.choice([b for b in active_bots if b != first_bot])
         threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
