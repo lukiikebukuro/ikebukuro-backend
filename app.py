@@ -29,19 +29,19 @@ except Exception as e:
     raise
 
 bots = {
-    "urban": {  # Manipulator
+    "urban": {
         "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
         "color": "#000000",
         "textColor": "#ff0000",
         "nen_type": "Manipulator"
     },
-    "fox": {  # Specjalista
+    "fox": {
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000",
         "nen_type": "Specjalista"
     },
-    "menma": {  # Wzmacniacz
+    "menma": {
         "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000",
@@ -59,14 +59,12 @@ def add_human_touch(bot, text):
     human_prefixes = ["ej, ", "no dobra, ", "hej, ", "o, "]
     text = random.choice(human_prefixes) + text
     
-    # Ograniczamy do 5-10 słów
     words = text.split()
     if len(words) > 10:
         text = " ".join(words[:10])
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
-    # Blokada nonsensu
     last_word = words[-1]
     if len(last_word) < 3 or last_word in ["kto", "co", "jak", "colts"]:
         text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "super"])
@@ -117,10 +115,8 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
-        # Formatowanie nazwy: bot(NenType) z wielką literą
-        nen_type = bots[bot]["nen_type"]  # np. "Manipulator"
-        nickname = f"{bot}({nen_type})"   # np. "urban(Manipulator)"
-        
+        nen_type = bots[bot]["nen_type"]
+        nickname = f"{bot}({nen_type})"  # Poprawne formatowanie: jeden typ Nen
         message_data = {
             "nickname": nickname,
             "message": response,
@@ -149,25 +145,23 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
 def chat():
     global last_bot
     user_message = request.json["message"]
-    logger.info(f"Oを受けた wiadomość w /chat: {user_message}")
+    logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # Reakcja na imię - pełne nicki
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
-    if active_bots:  # Wywołano bota
+    if active_bots:
         first_bot = active_bots[0]
         logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
-        last_bot = first_bot  # Nadpisuje last_bot
-    else:  # Brak imienia
+        last_bot = first_bot
+    else:
         if last_bot and last_bot in bots:
             first_bot = last_bot
         else:
             first_bot = random.choice(list(bots.keys()))
         logger.info(f"Selected first bot: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
-        # Wtrącenia wyłączone - jeden bot na raz
     
     return {"status": "ok"}
 
