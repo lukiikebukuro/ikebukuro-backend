@@ -49,6 +49,9 @@ bots = {
     }
 }
 
+# Globalna zmienna do śledzenia ostatniego bota (na prostym poziomie, bez sesji)
+last_bot = None
+
 @app.route("/", methods=["GET"])
 def home():
     return {"message": "Service is live 🎉"}, 200
@@ -76,6 +79,7 @@ def add_human_touch(bot, text):
     return text
 
 def send_bot_message(bot, message, is_reply=False, reply_to=None):
+    global last_bot
     try:
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
         prompt = bots[bot]["persona"]
@@ -107,6 +111,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             "timestamp": {".sv": "timestamp"}
         })
         logger.info(f"Bot {bot} sent: {response}")
+        last_bot = bot  # Aktualizujemy ostatniego bota
         return response
     except Exception as e:
         logger.error(f"Bot {bot} failed: {str(e)}")
@@ -121,44 +126,31 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    global last_bot
     user_message = request.json["message"]
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # Reakcja na imię – tylko wywołane boty
+    # Reakcja na imię – konkretny bot
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
-    # Jeśli brak imienia lub ogólne "hej", losowy bot
-    if not active_bots and "hej" in message_lower:
-        active_bots = [
-            bot for bot, chance in [("foxhime93", 0.35), ("urban_mindz", 0.35), ("ghostie_menma", 0.30)]
-            if random.random() < chance
-        ]
-        if not active_bots:
-            active_bots = [random.choice(list(bots.keys()))]
+    if active_bots:  # Jeśli wywołano bota
+        first_bot = active_bots[0]  # Pierwszy wywołany bot
+    elif last_bot and last_bot in bots:  # Kontynuacja rozmowy z ostatnim botem
+        first_bot = last_bot
+    else:  # Losowy bot na start lub przy "hej", "co tam"
+        first_bot = random.choice(list(bots.keys()))
     
-    # Ograniczenie do 1 bota, chyba że wywołano więcej
-    if len(active_bots) > 1 and " i " not in message_lower:  # "i" oznacza chęć rozmowy z wieloma
-        active_bots = [random.choice(active_bots)]
-    
-    # Jeśli brak botów (np. "co słychać" bez imienia), losowy z małą szansą
-    if not active_bots and random.random() < 0.2:
-        active_bots = [random.choice(list(bots.keys()))]
-    
-    if not active_bots:
-        logger.info("No bots triggered")
-        return {"status": "ok"}
-    
-    logger.info(f"Selected bots: {active_bots}")
-    
-    # Pierwszy bot odpowiada
-    first_bot = active_bots[0]
+    logger.info(f"Selected first bot: {first_bot}")
     first_response = send_bot_message(first_bot, user_message)
     
-    # Interakcja tylko jeśli wywołano więcej botów (np. "urban i menma")
-    if first_response and len(active_bots) > 1 and random.random() < 0.3:
-        second_bot = random.choice([b for b in active_bots if b != first_bot])
-        threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
+    # Wtrącanie się innego bota (20% szans)
+    if first_response and random.random() < 0.2:
+        other_bots = [bot for bot in bots.keys() if bot != first_bot]
+        if other_bots:
+            second_bot = random.choice(other_bots)
+            logger.info(f"Wtrącenie: {second_bot}")
+            threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
     
     return {"status": "ok"}
 
