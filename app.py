@@ -21,7 +21,6 @@ try:
     firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
     if not firebase_credentials:
         raise ValueError("FIREBASE_CREDENTIALS not set.")
-    logger.debug(f"FIREBASE_CREDENTIALS: {firebase_credentials[:100]}...")
     cred = credentials.Certificate(json.loads(firebase_credentials))
     firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
     messages_ref = db.reference("messages")
@@ -31,17 +30,17 @@ except Exception as e:
 
 bots = {
     "urban_mindz": {
-        "persona": "Socjopatyczny trickster jak Izaya, inteligentny, manipulujący. Pisz krótko (5-10 słów), wyluzowano, sarkazm lub zagadki, literówki w 15%, emotki xd.",
+        "persona": "Socjopatyczny trickster jak Izaya, inteligentny, manipulujący. Pisz krótko (5-10 słów), luzacki ton, sarkazm lub zagadki, literówki w 15%, emotki w 20%.",
         "color": "#000000",
         "textColor": "#ff0000"
     },
     "foxhime93": {
-        "persona": "Mądra lisia handlarka, ludzka, flirciarska. Pisz bardzo krótko (max 5 słów), dodaj emotki :) lub ~.",
+        "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000"
     },
     "ghostie_menma": {
-        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalnie, unikaj powtórek, literówki w 10%, jedna emotka ^^ lub uwu.",
+        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, literówki w 10%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000"
     }
@@ -54,25 +53,25 @@ def home():
     return {"message": "Service is live 🎉"}, 200
 
 def add_human_touch(bot, text):
-    human_prefixes = ["ee… ", "no dobra, ", "hej, ", ""]
-    text = random.choice(human_prefixes) + text.strip()  # Ensure no trailing "this" or similar artifacts
+    human_prefixes = ["ej, ", "no dobra, ", "hej, ", "o, "]
+    text = random.choice(human_prefixes) + text
     
     if bot == "urban_mindz":
         if random.random() < 0.15:
-            text = text.replace("e", "ee").replace("o", "oo").replace("i", "ii")
-        if random.random() < 0.6:
-            text += random.choice([" xd", " heh", " okk"])
+            text = text.replace("e", "ee").replace("o", "oo")
         if random.random() < 0.2:
-            text += " co ukrywasz?"
+            text += random.choice([" xd", " heh", " serio"])
+        if random.random() < 0.2:
+            text += " co kombinujesz?"
     elif bot == "foxhime93":
-        text = " ".join(text.split()[:5])  # Limit to 5 words
-        if random.random() < 0.2:  # Reduce emote usage
-            text += random.choice([".", " no powiedz."])
+        text = " ".join(text.split()[:5])
+        if random.random() < 0.05:  # 5% na emotkę
+            text += random.choice([" .", " ~", " hmpf"])
     elif bot == "ghostie_menma":
         if random.random() < 0.1:
             text = text.replace("a", "aa").replace("e", "ee")
         if random.random() < 0.6:
-            text += random.choice([" ^^", " uwu", " :3"])  # Max one emoticon
+            text += random.choice([" ^^", " uwu", " :3"])
     return text
 
 def send_bot_message(bot, message, is_reply=False, reply_to=None):
@@ -81,19 +80,23 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
         prompt = bots[bot]["persona"]
         if is_reply and reply_to:
-            prompt += f" Odpowiadasz na '{reply_to}' od innego bota."
+            prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
         
-        response = openai.ChatCompletion.create(  # Corrected API call
-            model="gpt-4",
+        response = openai.chat.completions.create(
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
             max_tokens=15
-        ).choices[0].message.content.strip()  # Ensure no trailing artifacts
+        ).choices[0].message.content.lower()
+        
+        # Filtr na urwane odpowiedzi
+        while len(response.split()) < 3:
+            response += " " + random.choice(["no", "dobra", "hej"])
         
         if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
-            response = random.choice(["nya~ ", "kocham cię! ", "hejka "]) + response
+            response = random.choice(["nya~ ", "słodkie! ", "hejka "]) + response
         
         response = add_human_touch(bot, response)
         delay = random.uniform(10, 30)
@@ -108,7 +111,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             "timestamp": {".sv": "timestamp"}
         }
         ref = messages_ref.push(message_data)
-        message_id = ref.key  # Message ID
+        message_id = ref.key
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
         return response, message_id
@@ -130,13 +133,13 @@ def chat():
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # React to bot names
+    # Reakcja na imię
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
-    if active_bots:  # Specific bot called
+    if active_bots:  # Wywołano bota
         first_bot = active_bots[0]
         first_response, _ = send_bot_message(first_bot, user_message)
-    else:  # No specific bot called – continue or pick random
+    else:  # Brak imienia
         if last_bot and last_bot in bots:
             first_bot = last_bot
         else:
@@ -144,12 +147,12 @@ def chat():
         logger.info(f"Selected first bot: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
         
-        # Interjection only if no specific bot called (20%)
+        # Wtrącenie tylko przy braku imienia (20%)
         if first_response and random.random() < 0.2:
             other_bots = [bot for bot in bots.keys() if bot != first_bot]
             if other_bots:
                 second_bot = random.choice(other_bots)
-                logger.info(f"Interjection: {second_bot}")
+                logger.info(f"Wtrącenie: {second_bot}")
                 threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
     
     return {"status": "ok"}
