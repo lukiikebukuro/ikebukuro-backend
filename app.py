@@ -55,7 +55,7 @@ def home():
 
 def add_human_touch(bot, text):
     human_prefixes = ["ee… ", "no dobra, ", "hej, ", ""]
-    text = random.choice(human_prefixes) + text
+    text = random.choice(human_prefixes) + text.strip()  # Ensure no trailing "this" or similar artifacts
     
     if bot == "urban_mindz":
         if random.random() < 0.15:
@@ -65,14 +65,14 @@ def add_human_touch(bot, text):
         if random.random() < 0.2:
             text += " co ukrywasz?"
     elif bot == "foxhime93":
-        text = " ".join(text.split()[:5])
-        if random.random() < 0.4:
-            text += random.choice([" :)", " ~", " no powiedz"])
+        text = " ".join(text.split()[:5])  # Limit to 5 words
+        if random.random() < 0.2:  # Reduce emote usage
+            text += random.choice([".", " no powiedz."])
     elif bot == "ghostie_menma":
         if random.random() < 0.1:
             text = text.replace("a", "aa").replace("e", "ee")
         if random.random() < 0.6:
-            text += random.choice([" ^^", " uwu", " :3"])  # Max jedna emotka
+            text += random.choice([" ^^", " uwu", " :3"])  # Max one emoticon
     return text
 
 def send_bot_message(bot, message, is_reply=False, reply_to=None):
@@ -83,14 +83,14 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od innego bota."
         
-        response = openai.chat.completions.create(
-            model="gpt-4o",
+        response = openai.ChatCompletion.create(  # Corrected API call
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
             max_tokens=15
-        ).choices[0].message.content.lower()
+        ).choices[0].message.content.strip()  # Ensure no trailing artifacts
         
         if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
             response = random.choice(["nya~ ", "kocham cię! ", "hejka "]) + response
@@ -108,7 +108,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             "timestamp": {".sv": "timestamp"}
         }
         ref = messages_ref.push(message_data)
-        message_id = ref.key  # ID wiadomości
+        message_id = ref.key  # Message ID
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
         return response, message_id
@@ -130,13 +130,13 @@ def chat():
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    # Reakcja na imię
+    # React to bot names
     active_bots = [bot for bot in bots.keys() if bot in message_lower]
     
-    if active_bots:  # Wywołano konkretnego bota
+    if active_bots:  # Specific bot called
         first_bot = active_bots[0]
         first_response, _ = send_bot_message(first_bot, user_message)
-    else:  # Brak imienia – kontynuacja lub losowy
+    else:  # No specific bot called – continue or pick random
         if last_bot and last_bot in bots:
             first_bot = last_bot
         else:
@@ -144,12 +144,12 @@ def chat():
         logger.info(f"Selected first bot: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
         
-        # Wtrącenie tylko przy braku wywołania (20%)
+        # Interjection only if no specific bot called (20%)
         if first_response and random.random() < 0.2:
             other_bots = [bot for bot in bots.keys() if bot != first_bot]
             if other_bots:
                 second_bot = random.choice(other_bots)
-                logger.info(f"Wtrącenie: {second_bot}")
+                logger.info(f"Interjection: {second_bot}")
                 threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
     
     return {"status": "ok"}
