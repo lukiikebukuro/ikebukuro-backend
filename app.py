@@ -1,100 +1,159 @@
-import random
-import openai
-from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask import Flask, request
+import openai
+import firebase_admin
+from firebase_admin import db, credentials
+import random
+import time
+import threading
+import os
+import json
+import logging
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/chat": {"origins": "https://ikebukurofighters.pl"}})
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-openai.api_key = "your-openai-api-key"
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-bots = [
-    {
-        "name": "ghostie_menma",
-        "role": "Emiter",
-        "personality": "Jesteś ghostie_menma, bardzo emocjonalną, czułą i kawaii postacią anime. Używasz wielu emotek i mówisz z dziecięcym entuzjazmem.",
-        "style": lambda msg: msg + " ^^"
+try:
+    firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
+    if not firebase_credentials:
+        raise ValueError("FIREBASE_CREDENTIALS not set.")
+    logger.debug(f"FIREBASE_CREDENTIALS: {firebase_credentials[:100]}...")
+    cred = credentials.Certificate(json.loads(firebase_credentials))
+    firebase_admin.initialize_app(cred, {"databaseURL": "https://ikebukuro-1867e-default-rtdb.europe-west1.firebasedatabase.app"})
+    messages_ref = db.reference("messages")
+except Exception as e:
+    logger.error(f"Failed to initialize Firebase: {str(e)}")
+    raise
+
+bots = {
+    "urban_mindz": {
+        "persona": "Socjopatyczny trickster jak Izaya, inteligentny, manipulujący. Pisz krótko (5-10 słów), wyluzowano, sarkazm lub zagadki, literówki w 15%, emotki xd.",
+        "color": "#000000",
+        "textColor": "#ff0000"
     },
-    {
-        "name": "foxhime93",
-        "role": "Specjalista",
-        "personality": "Jesteś foxhime93, sprytną, energiczną lisicą z anime. Czasem używasz emotek, ale oszczędnie. Twoje odpowiedzi są dynamiczne i rzeczowe.",
-        "style": lambda msg: msg + random.choice(["", " 😉", " 🦊"])
+    "foxhime93": {
+        "persona": "Mądra lisia handlarka, ludzka, flirciarska. Pisz bardzo krótko (max 5 słów), dodaj emotki :) lub ~.",
+        "color": "#ffa500",
+        "textColor": "#000000"
     },
-    {
-        "name": "urban_mindz",
-        "role": "Manipulator",
-        "personality": "Jesteś urban_mindz, tajemniczym i filozoficznym manipulatorem. Twoje wypowiedzi są głębokie i enigmatyczne.",
-        "style": lambda msg: msg + random.choice(["...", " skarbie.", " życie pełne tajemnic."])
+    "ghostie_menma": {
+        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalnie, unikaj powtórek, literówki w 10%, jedna emotka ^^ lub uwu.",
+        "color": "#ffffff",
+        "textColor": "#000000"
     }
-]
+}
 
-chat_history = []
-last_active_bot = None
+last_bot = None
 
+@app.route("/", methods=["GET"])
+def home():
+    return {"message": "Service is live 🎉"}, 200
 
-def generate_reply(bot, user_message):
-    context = f"Historia rozmowy: {chat_history[-5:]}\n\n"
-    prompt = f"{bot['personality']}\n{context}\nUżytkownik napisał: '{user_message}'\nTwoja odpowiedź:"
+def add_human_touch(bot, text):
+    human_prefixes = ["ee… ", "no dobra, ", "hej, ", ""]
+    text = random.choice(human_prefixes) + text
+    
+    if bot == "urban_mindz":
+        if random.random() < 0.15:
+            text = text.replace("e", "ee").replace("o", "oo").replace("i", "ii")
+        if random.random() < 0.6:
+            text += random.choice([" xd", " heh", " okk"])
+        if random.random() < 0.2:
+            text += " co ukrywasz?"
+    elif bot == "foxhime93":
+        text = " ".join(text.split()[:5])
+        if random.random() < 0.4:
+            text += random.choice([" :)", " ~", " no powiedz"])
+    elif bot == "ghostie_menma":
+        if random.random() < 0.1:
+            text = text.replace("a", "aa").replace("e", "ee")
+        if random.random() < 0.6:
+            text += random.choice([" ^^", " uwu", " :3"])  # Max jedna emotka
+    return text
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": bot['personality']},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=100,
-        temperature=0.9
-    )
+def send_bot_message(bot, message, is_reply=False, reply_to=None):
+    global last_bot
+    try:
+        logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
+        prompt = bots[bot]["persona"]
+        if is_reply and reply_to:
+            prompt += f" Odpowiadasz na '{reply_to}' od innego bota."
+        
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": message}
+            ],
+            max_tokens=15
+        ).choices[0].message.content.lower()
+        
+        if bot == "ghostie_menma" and random.random() < 0.3 and not is_reply:
+            response = random.choice(["nya~ ", "kocham cię! ", "hejka "]) + response
+        
+        response = add_human_touch(bot, response)
+        delay = random.uniform(10, 30)
+        logger.info(f"Bot {bot} waiting {delay}s: {response}")
+        time.sleep(delay)
+        
+        message_data = {
+            "nickname": bot,
+            "message": response,
+            "color": bots[bot]["color"],
+            "textColor": bots[bot]["textColor"],
+            "timestamp": {".sv": "timestamp"}
+        }
+        ref = messages_ref.push(message_data)
+        message_id = ref.key  # ID wiadomości
+        logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
+        last_bot = bot
+        return response, message_id
+    except Exception as e:
+        logger.error(f"Bot {bot} failed: {str(e)}")
+        messages_ref.push({
+            "nickname": "System",
+            "message": f"Error: {bot} - {str(e)}",
+            "color": "#ff4500",
+            "textColor": "#000000",
+            "timestamp": {".sv": "timestamp"}
+        })
+        return None, None
 
-    raw_msg = response.choices[0].message.content.strip()
-    styled_msg = bot['style'](raw_msg)
-    return styled_msg
-
-
-@app.route("/send", methods=["POST"])
+@app.route("/chat", methods=["POST"])
 def chat():
-    global last_active_bot
-
-    data = request.json
-    user = data.get("user")
-    message = data.get("message")
-
-    chat_history.append(f"{user}: {message}")
-
-    # Wybór głównego bota do odpowiedzi
-    if last_active_bot is None or random.random() < 0.3:
-        responding_bot = random.choice(bots)
-    else:
-        responding_bot = last_active_bot
-
-    reply = generate_reply(responding_bot, message)
-    chat_history.append(f"{responding_bot['name']} ({responding_bot['role']}): {reply}")
-    last_active_bot = responding_bot
-
-    # Losowa szansa na wtrącenie się innego bota
-    extra_replies = []
-    if random.random() < 0.2:
-        other_bots = [bot for bot in bots if bot != responding_bot]
-        intruder = random.choice(other_bots)
-        extra_msg = generate_reply(intruder, message)
-        chat_history.append(f"{intruder['name']} ({intruder['role']}): {extra_msg}")
-        extra_replies.append({"name": intruder['name'], "role": intruder['role'], "message": extra_msg})
-
-    return jsonify({
-        "main_reply": {
-            "name": responding_bot['name'],
-            "role": responding_bot['role'],
-            "message": reply
-        },
-        "extra_replies": extra_replies
-    })
-
-
-@app.route("/history", methods=["GET"])
-def history():
-    return jsonify({"history": chat_history[-20:]})
-
+    global last_bot
+    user_message = request.json["message"]
+    logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
+    message_lower = user_message.lower()
+    
+    # Reakcja na imię
+    active_bots = [bot for bot in bots.keys() if bot in message_lower]
+    
+    if active_bots:  # Wywołano konkretnego bota
+        first_bot = active_bots[0]
+        first_response, _ = send_bot_message(first_bot, user_message)
+    else:  # Brak imienia – kontynuacja lub losowy
+        if last_bot and last_bot in bots:
+            first_bot = last_bot
+        else:
+            first_bot = random.choice(list(bots.keys()))
+        logger.info(f"Selected first bot: {first_bot}")
+        first_response, _ = send_bot_message(first_bot, user_message)
+        
+        # Wtrącenie tylko przy braku wywołania (20%)
+        if first_response and random.random() < 0.2:
+            other_bots = [bot for bot in bots.keys() if bot != first_bot]
+            if other_bots:
+                second_bot = random.choice(other_bots)
+                logger.info(f"Wtrącenie: {second_bot}")
+                threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
+    
+    return {"status": "ok"}
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
