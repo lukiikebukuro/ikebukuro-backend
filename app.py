@@ -34,26 +34,29 @@ bots = {
         "color": "#000000",
         "textColor": "#ff0000",
         "nen_type": "Manipulator",
-        "last_response_time": 0  # Dodajemy czas ostatniej odpowiedzi
+        "last_response_time": 0,
+        "is_responding": False  # Dodajemy flagę, czy bot już odpowiada
     },
     "fox": {
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000",
         "nen_type": "Specjalista",
-        "last_response_time": 0
+        "last_response_time": 0,
+        "is_responding": False
     },
     "menma": {
         "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000",
         "nen_type": "Wzmacniacz",
-        "last_response_time": 0
+        "last_response_time": 0,
+        "is_responding": False
     }
 }
 
 last_bot = None
-COOLDOWN_TIME = 30  # 30 sekund cooldown między odpowiedziami tego samego bota
+COOLDOWN_TIME = 30  # 30 sekund cooldown
 
 @app.route("/", methods=["GET"])
 def home():
@@ -65,7 +68,7 @@ def add_human_touch(bot, text):
     
     words = text.split()
     if len(words) > 10:
-        text = " ".join(words[:random.randint(5, 10)])  # Ścisłe 5-10 słów
+        text = " ".join(words[:random.randint(5, 10)])
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
@@ -95,9 +98,12 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
     global last_bot
     try:
         current_time = time.time()
-        if current_time - bots[bot]["last_response_time"] < COOLDOWN_TIME:
-            logger.info(f"Bot {bot} na cooldownie, pomijam odpowiedź.")
+        if current_time - bots[bot]["last_response_time"] < COOLDOWN_TIME or bots[bot]["is_responding"]:
+            logger.info(f"Bot {bot} na cooldownie lub już odpowiada, pomijam.")
             return None, None
+
+        bots[bot]["is_responding"] = True  # Ustawiamy flagę przed odpowiedzią
+        bots[bot]["last_response_time"] = current_time  # Aktualizujemy czas od razu
 
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
         prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, krótko (5-10 słów), z sensem, bez dziwnych słów."
@@ -110,7 +116,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=15  # Zmniejszamy do 15, żeby zmieścić się w 5-10 słów po dodatkach
+            max_tokens=15
         ).choices[0].message.content.lower()
         
         while len(response.split()) < 3:
@@ -138,10 +144,11 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         message_id = ref.key
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
-        bots[bot]["last_response_time"] = time.time()  # Aktualizujemy czas odpowiedzi
+        bots[bot]["is_responding"] = False  # Reset flagi po odpowiedzi
         return response, message_id
     except Exception as e:
         logger.error(f"Bot {bot} failed: {str(e)}")
+        bots[bot]["is_responding"] = False  # Reset w razie błędu
         messages_ref.push({
             "nickname": "System",
             "message": f"Error: {bot} - {str(e)}",
@@ -162,14 +169,21 @@ def chat():
     
     if active_bots:
         first_bot = active_bots[0]
+        if bots[first_bot]["is_responding"]:
+            logger.info(f"Bot {first_bot} już odpowiada, pomijam.")
+            return {"status": "ok"}
         logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
         last_bot = first_bot
     else:
-        if last_bot and last_bot in bots:
+        if last_bot and last_bot in bots and not bots[last_bot]["is_responding"]:
             first_bot = last_bot
         else:
-            first_bot = random.choice(list(bots.keys()))
+            available_bots = [bot for bot in bots.keys() if not bots[bot]["is_responding"]]
+            if not available_bots:
+                logger.info("Brak dostępnych botów, pomijam.")
+                return {"status": "ok"}
+            first_bot = random.choice(available_bots)
         logger.info(f"Selected first bot: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
     
