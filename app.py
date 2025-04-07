@@ -65,7 +65,7 @@ def add_human_touch(bot, text):
             text += " co kombinujesz?"
     elif bot == "foxhime93":
         text = " ".join(text.split()[:5])
-        if random.random() < 0.05:  # 5% na emotkę
+        if random.random() < 0.05:
             text += random.choice([" .", " ~", " hmpf"])
     elif bot == "ghostie_menma":
         if random.random() < 0.1:
@@ -78,7 +78,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
     global last_bot
     try:
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
-        prompt = bots[bot]["persona"]
+        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, bez sztuczności."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
         
@@ -138,6 +138,7 @@ def chat():
     
     if active_bots:  # Wywołano bota
         first_bot = active_bots[0]
+        logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
     else:  # Brak imienia
         if last_bot and last_bot in bots:
