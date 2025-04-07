@@ -140,6 +140,7 @@ def chat():
         first_bot = active_bots[0]
         logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
+        last_bot = first_bot  # Aktualizacja last_bot po wywołaniu
     else:  # Brak imienia
         if last_bot and last_bot in bots:
             first_bot = last_bot
