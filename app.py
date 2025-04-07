@@ -29,18 +29,18 @@ except Exception as e:
     raise
 
 bots = {
-    "urban": {
+    "urban": {  # Manipulator
         "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
         "color": "#000000",
         "textColor": "#ff0000"
     },
-    "fox": {
+    "fox": {  # Specjalista
         "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
         "color": "#ffa500",
         "textColor": "#000000"
     },
-    "menma": {
-        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, literówki w 5%, emotki ^^ lub uwu w 60%.",
+    "menma": {  # Wzmacniacz
+        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
         "color": "#ffffff",
         "textColor": "#000000"
     }
@@ -69,7 +69,7 @@ def add_human_touch(bot, text):
         text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "super"])
     
     if bot == "urban":
-        if random.random() < 0.05:  # Z 15% na 5%
+        if random.random() < 0.05:
             text = text.replace("e", "ee").replace("o", "oo")
         if random.random() < 0.2:
             text += random.choice([" xd", " heh", " serio"])
@@ -160,14 +160,7 @@ def chat():
             first_bot = random.choice(list(bots.keys()))
         logger.info(f"Selected first bot: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
-        
-        # Wtrącenie tylko przy braku imienia (20%)
-        if first_response and random.random() < 0.2:
-            other_bots = [bot for bot in bots.keys() if bot != first_bot]
-            if other_bots:
-                second_bot = random.choice(other_bots)
-                logger.info(f"Wtrącenie: {second_bot}")
-                threading.Thread(target=send_bot_message, args=(second_bot, first_response, True, first_response)).start()
+        # Wtrącenia wyłączone - jeden bot na raz
     
     return {"status": "ok"}
 
