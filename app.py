@@ -10,7 +10,7 @@ import json
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/chat": {"origins": "https://ikebukurofighters.pl"}})
+CORS(app, resources={r"/chat": {"origins": "*"}})  # Testowo otwarte
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 logging.basicConfig(level=logging.DEBUG)
@@ -69,6 +69,7 @@ def send_bot_message(bot, message):
         if bot == "ghostie_menma":
             prompt += " Używaj uroczych zwrotów jak 'uwu', 'nya', 'kocham cię'."
         
+        logger.info(f"Calling OpenAI for {bot}")
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -77,6 +78,7 @@ def send_bot_message(bot, message):
             ],
             max_tokens=15
         ).choices[0].message.content.lower()
+        logger.info(f"OpenAI returned: {response}")
         
         if bot == "ghostie_menma" and random.random() < 0.3:
             response = random.choice(["kocham cię! ", "nya~ ", "uwu "]) + response
@@ -86,6 +88,7 @@ def send_bot_message(bot, message):
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
+        logger.info(f"Pushing to Firebase: {response}")
         messages_ref.push({
             "nickname": bot,
             "message": response,
@@ -118,9 +121,13 @@ def chat():
             active_bots = [random.choice(list(bots.keys()))]
             logger.info(f"Random bot: {active_bots}")
         
+        if not active_bots:
+            logger.info("No bots selected.")
+            return {"status": "ok"}
+        
         for bot in active_bots:
-            logger.info(f"Starting {bot}")
-            send_bot_message(bot, user_message)  # Bez wątków na test
+            logger.info(f"Calling {bot} directly")
+            send_bot_message(bot, user_message)  # Bez wątków
         
         return {"status": "ok"}
     except Exception as e:
@@ -130,3 +137,7 @@ def chat():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+# Test lokalny
+if __name__ == "__main__":
+    send_bot_message("urban_mindz", "hej")  # Testowe wywołanie
