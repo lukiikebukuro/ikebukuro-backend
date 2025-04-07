@@ -5,7 +5,6 @@ import firebase_admin
 from firebase_admin import db, credentials
 import random
 import time
-import threading
 import os
 import json
 import logging
@@ -30,15 +29,15 @@ except Exception as e:
 
 bots = {
     "urban": {
-        "persona": "Inteligentny, sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów), luzacki ton, zero głupot, literówki w 5%, emotki w 20%.",
+        "persona": "Inteligentny sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów zazwyczaj, max 20), luzacki ton, zero głupot, literówki w 5%, dużo 'xd' w 40%, bez przecinków.",
         "color": "#000000",
         "textColor": "#ff0000",
         "nen_type": "Manipulator",
         "last_response_time": 0,
-        "is_responding": False  # Dodajemy flagę, czy bot już odpowiada
+        "is_responding": False
     },
     "fox": {
-        "persona": "Mądra lisia handlarka, sprytna, niedostępna. Pisz bardzo krótko (max 5 słów), chłodny ton, emotki w 5%.",
+        "persona": "Mądra lisia handlarka sprytna niedostępna. Pisz bardzo krótko (max 5 słów zazwyczaj, do 20), chłodny ton, emotki w 5%, bez przecinków.",
         "color": "#ffa500",
         "textColor": "#000000",
         "nen_type": "Specjalista",
@@ -46,7 +45,7 @@ bots = {
         "is_responding": False
     },
     "menma": {
-        "persona": "Prosta, miła, kawaii kumpela. Pisz krótko (5-7 słów), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%.",
+        "persona": "Prosta miła kawaii kumpela. Pisz krótko (5-7 słów zazwyczaj, max 20), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%, bez przecinków.",
         "color": "#ffffff",
         "textColor": "#000000",
         "nen_type": "Wzmacniacz",
@@ -60,15 +59,18 @@ COOLDOWN_TIME = 30  # 30 sekund cooldown
 
 @app.route("/", methods=["GET"])
 def home():
-    return {"message": "Service is live 🎉"}, 200
+    return {"message": "Service is live xd"}, 200
 
 def add_human_touch(bot, text):
-    human_prefixes = ["ej, ", "no dobra, ", "hej, ", "o, "]
+    human_prefixes = ["ej ", "no dobra ", "hej ", "o "]
     text = random.choice(human_prefixes) + text
     
+    # Usuwamy przecinki
+    text = text.replace(",", "")
+    
     words = text.split()
-    if len(words) > 10:
-        text = " ".join(words[:random.randint(5, 10)])
+    if len(words) > 20:  # Max 20 słów
+        text = " ".join(words[:random.randint(5, 15)])  # Losowo 5-15, żeby nie zawsze max
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
@@ -79,12 +81,13 @@ def add_human_touch(bot, text):
     if bot == "urban":
         if random.random() < 0.05:
             text = text.replace("e", "ee").replace("o", "oo")
+        if random.random() < 0.4:  # 40% szans na "xd"
+            text += " xd"
         if random.random() < 0.2:
-            text += random.choice([" xd", " heh", " serio"])
-        if random.random() < 0.2:
-            text += " co kombinujesz?"
+            text += " co knujesz"
     elif bot == "fox":
-        text = " ".join(text.split()[:5])
+        if len(words) > 5 and random.random() < 0.8:  # Częściej max 5 słów
+            text = " ".join(words[:5])
         if random.random() < 0.05:
             text += random.choice([" .", " ~", " hmpf"])
     elif bot == "menma":
@@ -99,14 +102,14 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
     try:
         current_time = time.time()
         if current_time - bots[bot]["last_response_time"] < COOLDOWN_TIME or bots[bot]["is_responding"]:
-            logger.info(f"Bot {bot} na cooldownie lub już odpowiada, pomijam.")
+            logger.info(f"Bot {bot} na cooldownie lub już odpowiada, pomijam")
             return None, None
 
-        bots[bot]["is_responding"] = True  # Ustawiamy flagę przed odpowiedzią
-        bots[bot]["last_response_time"] = current_time  # Aktualizujemy czas od razu
+        bots[bot]["is_responding"] = True
+        bots[bot]["last_response_time"] = current_time
 
         logger.info(f"Bot {bot} preparing: {message} (reply: {is_reply})")
-        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek, krótko (5-10 słów), z sensem, bez dziwnych słów."
+        prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek krótko (5-10 słów zazwyczaj, max 20) z sensem bez dziwnych słów bez formalności."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
         
@@ -116,17 +119,17 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=15
+            max_tokens=30  # Do 20 słów z zapasem na dodatki
         ).choices[0].message.content.lower()
         
         while len(response.split()) < 3:
             response += " " + random.choice(["no", "dobra", "spoko"])
         
         if bot == "menma" and random.random() < 0.3 and not is_reply:
-            response = random.choice(["nya~ ", "słodkie! ", "hejka "]) + response
+            response = random.choice(["nya~ ", "słodkie ", "hejka "]) + response
         
         response = add_human_touch(bot, response)
-        delay = random.uniform(10, 30)
+        delay = random.uniform(5, 15)  # Krótsze opóźnienie, bardziej naturalne
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
@@ -144,11 +147,11 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         message_id = ref.key
         logger.info(f"Bot {bot} sent: {response} (ID: {message_id})")
         last_bot = bot
-        bots[bot]["is_responding"] = False  # Reset flagi po odpowiedzi
+        bots[bot]["is_responding"] = False
         return response, message_id
     except Exception as e:
         logger.error(f"Bot {bot} failed: {str(e)}")
-        bots[bot]["is_responding"] = False  # Reset w razie błędu
+        bots[bot]["is_responding"] = False
         messages_ref.push({
             "nickname": "System",
             "message": f"Error: {bot} - {str(e)}",
@@ -170,7 +173,7 @@ def chat():
     if active_bots:
         first_bot = active_bots[0]
         if bots[first_bot]["is_responding"]:
-            logger.info(f"Bot {first_bot} już odpowiada, pomijam.")
+            logger.info(f"Bot {first_bot} już odpowiada, pomijam")
             return {"status": "ok"}
         logger.info(f"Wywołano: {first_bot}")
         first_response, _ = send_bot_message(first_bot, user_message)
@@ -181,7 +184,7 @@ def chat():
         else:
             available_bots = [bot for bot in bots.keys() if not bots[bot]["is_responding"]]
             if not available_bots:
-                logger.info("Brak dostępnych botów, pomijam.")
+                logger.info("Brak dostępnych botów, pomijam")
                 return {"status": "ok"}
             first_bot = random.choice(available_bots)
         logger.info(f"Selected first bot: {first_bot}")
