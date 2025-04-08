@@ -29,7 +29,7 @@ except Exception as e:
 
 bots = {
     "urban": {
-        "persona": "Socjopatyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów zazwyczaj, max 20), sarkastyczny nieetyczny ton, świrnięty luzacki vibe, literówki w 5%, 'xd' w 40%, bez przecinków.",
+        "persona": "Inteligentny socjopatyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów zazwyczaj, max 20), sarkastyczny ton, sprytny i nieetyczny, manipuluje rozmówcą subtelnie, luzacki vibe, literówki w 5%, 'xd' w 30%, bez przecinków.",
         "color": "#000000",
         "textColor": "#ff0000",
         "nen_type": "Manipulator",
@@ -45,7 +45,7 @@ bots = {
         "is_responding": False
     },
     "menma": {
-        "persona": "Prosta miła kawaii kumpela. Pisz krótko (5-7 słów zazwyczaj, max 20), naturalny ton, kawaii, bez głupot, literówki w 5%, emotki ^^ lub uwu w 60%, bez przecinków.",
+        "persona": "Słodka kawaii kumpela z sercem. Pisz krótko (5-7 słów zazwyczaj, max 20), ciepły naturalny ton, wspierająca i miła, emotki ^^ lub :3 w 50%, literówki w 5%, bez przecinków.",
         "color": "#ffffff",
         "textColor": "#000000",
         "nen_type": "Wzmacniacz",
@@ -70,21 +70,26 @@ def add_human_touch(bot, text):
     
     words = text.split()
     if len(words) > 20:  # Max 20 słów
-        text = " ".join(words[:random.randint(5, 15)])  # Losowo 5-15
+        text = " ".join(words[:random.randint(5, 15)])
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
     last_word = words[-1]
     if len(last_word) < 3 or last_word in ["kto", "co", "jak", "colts"]:
-        text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "super"])
+        text = " ".join(words[:-1]) + " " + random.choice(["fajnie", "git", "okej"])
     
     if bot == "urban":
         if random.random() < 0.05:
             text = text.replace("e", "ee").replace("o", "oo")
-        if random.random() < 0.4:  # 40% szans na "xd"
+        if random.random() < 0.3:  # 30% na "xd"
             text += " xd"
-        if random.random() < 0.2:  # Socjopatyczne dodatki
-            text += random.choice([" co knujesz", " zniszczę ci dzień", " patrz jak się wijesz"])
+        if random.random() < 0.25:  # 25% na manipulacyjne dodatki
+            text += random.choice([
+                " co ty na to", 
+                " powiedz więcej", 
+                " łatwo cię rozgryźć", 
+                " myślisz że wygrasz"
+            ])
     elif bot == "fox":
         if len(words) > 5 and random.random() < 0.8:
             text = " ".join(words[:5])
@@ -93,8 +98,10 @@ def add_human_touch(bot, text):
     elif bot == "menma":
         if random.random() < 0.05:
             text = text.replace("a", "aa").replace("e", "ee")
-        if random.random() < 0.6:
-            text += random.choice([" ^^", " uwu", " :3"])
+        if random.random() < 0.5:  # 50% na emotki
+            text += random.choice([" ^^", " :3", " hehe"])
+        if random.random() < 0.2:  # 20% na ciepłe dodatki
+            text += random.choice([" jesteś super", " miło cię słyszeć"])
     return text
 
 def send_bot_message(bot, message, is_reply=False, reply_to=None):
@@ -112,8 +119,8 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek krótko (5-10 słów zazwyczaj, max 20) z sensem bez dziwnych słów bez formalności."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
-        elif bot == "urban" and random.random() < 0.3:  # 30% szans na odpowiedź urbana
-            prompt += f" Skomentuj ostatnią wiadomość '{message}'."
+        elif bot == "urban" and random.random() < 0.3:  # 30% szans na manipulację urbana
+            prompt += f" Skomentuj ostatnią wiadomość '{message}' i podpuść rozmówcę."
 
         response = openai.chat.completions.create(
             model="gpt-4o",
