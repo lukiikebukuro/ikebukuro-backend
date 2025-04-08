@@ -29,7 +29,7 @@ except Exception as e:
 
 bots = {
     "urban": {
-        "persona": "Inteligentny sarkastyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów zazwyczaj, max 20), luzacki ton, zero głupot, literówki w 5%, dużo 'xd' w 40%, bez przecinków.",
+        "persona": "Socjopatyczny manipulator jak Izaya Orihara. Pisz krótko (5-10 słów zazwyczaj, max 20), sarkastyczny nieetyczny ton, świrnięty luzacki vibe, literówki w 5%, 'xd' w 40%, bez przecinków.",
         "color": "#000000",
         "textColor": "#ff0000",
         "nen_type": "Manipulator",
@@ -70,7 +70,7 @@ def add_human_touch(bot, text):
     
     words = text.split()
     if len(words) > 20:  # Max 20 słów
-        text = " ".join(words[:random.randint(5, 15)])  # Losowo 5-15, żeby nie zawsze max
+        text = " ".join(words[:random.randint(5, 15)])  # Losowo 5-15
     elif len(words) < 5:
         text += " " + random.choice(["spoko", "luz", "dobra", "no"])
     
@@ -83,10 +83,10 @@ def add_human_touch(bot, text):
             text = text.replace("e", "ee").replace("o", "oo")
         if random.random() < 0.4:  # 40% szans na "xd"
             text += " xd"
-        if random.random() < 0.2:
-            text += " co knujesz"
+        if random.random() < 0.2:  # Socjopatyczne dodatki
+            text += random.choice([" co knujesz", " zniszczę ci dzień", " patrz jak się wijesz"])
     elif bot == "fox":
-        if len(words) > 5 and random.random() < 0.8:  # Częściej max 5 słów
+        if len(words) > 5 and random.random() < 0.8:
             text = " ".join(words[:5])
         if random.random() < 0.05:
             text += random.choice([" .", " ~", " hmpf"])
@@ -112,14 +112,16 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
         prompt = bots[bot]["persona"] + " Odpowiadaj jak człowiek krótko (5-10 słów zazwyczaj, max 20) z sensem bez dziwnych słów bez formalności."
         if is_reply and reply_to:
             prompt += f" Odpowiadasz na '{reply_to}' od kumpla."
-        
+        elif bot == "urban" and random.random() < 0.3:  # 30% szans na odpowiedź urbana
+            prompt += f" Skomentuj ostatnią wiadomość '{message}'."
+
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=30  # Do 20 słów z zapasem na dodatki
+            max_tokens=30  # Do 20 słów z zapasem
         ).choices[0].message.content.lower()
         
         while len(response.split()) < 3:
@@ -129,7 +131,7 @@ def send_bot_message(bot, message, is_reply=False, reply_to=None):
             response = random.choice(["nya~ ", "słodkie ", "hejka "]) + response
         
         response = add_human_touch(bot, response)
-        delay = random.uniform(5, 15)  # Krótsze opóźnienie, bardziej naturalne
+        delay = random.uniform(5, 15)  # Krótsze opóźnienie
         logger.info(f"Bot {bot} waiting {delay}s: {response}")
         time.sleep(delay)
         
@@ -168,7 +170,8 @@ def chat():
     logger.info(f"Otrzymano wiadomość w /chat: {user_message}")
     message_lower = user_message.lower()
     
-    active_bots = [bot for bot in bots.keys() if bot in message_lower]
+    # Tylko urban i menma
+    active_bots = [bot for bot in ["urban", "menma"] if bot in message_lower]
     
     if active_bots:
         first_bot = active_bots[0]
@@ -179,10 +182,10 @@ def chat():
         first_response, _ = send_bot_message(first_bot, user_message)
         last_bot = first_bot
     else:
-        if last_bot and last_bot in bots and not bots[last_bot]["is_responding"]:
+        if last_bot and last_bot in ["urban", "menma"] and not bots[last_bot]["is_responding"]:
             first_bot = last_bot
         else:
-            available_bots = [bot for bot in bots.keys() if not bots[bot]["is_responding"]]
+            available_bots = [bot for bot in ["urban", "menma"] if not bots[bot]["is_responding"]]
             if not available_bots:
                 logger.info("Brak dostępnych botów, pomijam")
                 return {"status": "ok"}
